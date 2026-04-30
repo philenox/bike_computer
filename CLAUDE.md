@@ -2,6 +2,11 @@
 
 Context for Claude Code working on this project.
 
+**Session start**: if `STATUS.md` exists at the repo root, read it before
+suggesting next steps. It captures the most recent session's state and the
+intended next move. This file (`CLAUDE.md`) is for durable context; transient
+state lives in `STATUS.md`.
+
 ## Project overview
 
 A DIY multi-mode outdoor GPS navigation device, targeting both cycling and
@@ -33,9 +38,6 @@ custom PCB for v1).
 - **IMU**: ICM-20948 breakout (9-DoF: accel + gyro + magnetometer)
   - Standard I2C, no clock-stretching quirks (unlike BNO08x family)
   - Fusion done on the ESP32 (Madgwick or Mahony filter)
-- **Barometer**: Adafruit BMP390 STEMMA QT
-  - Pressure-based altimetry and weather trend data
-  - Very low power (~3 µA in low-power mode)
 - **Display**: Adafruit Sharp Memory LCD breakout, 2.7" 400x240 monochrome
   - Reflective (sunlight-readable, brighter in sun)
   - SPI write-only; entire 13.5 KB framebuffer must be held in MCU RAM
@@ -95,7 +97,7 @@ In scope:
 - Breadcrumb-style display of pre-loaded GPX route on the map
 - Mode switching between RIDING / HIKING / LOGGING / SLEEP
 - IMU-derived heading reference (Madgwick filter on raw 9-DoF data)
-- BMP390-derived altitude and climb rate
+- GNSS-derived altitude (no barometer in v1; barometric altimetry deferred)
 - Pre-loaded SD workflow only
 
 Out of scope for v1, deferred to later:
@@ -156,7 +158,7 @@ bike_tracker/
 
 TBD — to be filled in once the Olimex board arrives and pin conflicts are
 resolved between SD (SPI), Sharp display (SPI, can share bus), GPS (I2C),
-IMU (I2C), and BMP390 (I2C).
+and IMU (I2C).
 
 ## Open questions for early sessions
 
