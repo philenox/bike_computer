@@ -20,3 +20,6 @@ build/
 *.local.ini
 secrets.h
 .env
+
+# Captured serial logs
+logs/
