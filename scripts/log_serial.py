@@ -29,14 +29,17 @@ LOG_DIR = REPO_ROOT / "logs"
 
 
 def read_pio_serial() -> tuple[str, int]:
+    """Find monitor_port/speed. Per-env overrides win over the shared [env]."""
     cfg = configparser.ConfigParser()
     cfg.read(PIO_INI)
-    for section in cfg.sections():
-        if section.startswith("env:"):
-            port = cfg.get(section, "monitor_port", fallback=None)
+    candidates = [s for s in cfg.sections() if s.startswith("env:")] + (
+        ["env"] if cfg.has_section("env") else []
+    )
+    for section in candidates:
+        port = cfg.get(section, "monitor_port", fallback=None)
+        if port:
             speed = cfg.getint(section, "monitor_speed", fallback=115200)
-            if port:
-                return port, speed
+            return port, speed
     raise SystemExit(f"no monitor_port in {PIO_INI}")
 
 
