@@ -2,6 +2,66 @@
 
 Living handoff doc — overwrite freely. Most recent session at top.
 
+## 2026-05-04 — breadboard migration + Sharp display bring-up
+
+**Done**
+
+- **Solderless breadboard**: ESP32-S3 + IMU + SD + Sharp display all
+  on one board, no more loose dupont wires holding the project
+  together. Validated with the smoke tests:
+  - `smoke_imu` ✓ (|a| ≈ 1.03 g flat)
+  - `smoke_sd`  ✓ (mount + listing + write/read round-trip)
+  - `smoke_display` ✓ (init, full-frame draw, refresh ticking)
+- **Sharp Memory LCD bring-up** (Adafruit 2.7" 400x240). Hardware
+  SPI through the shared bus, software-driven VCOM toggle (EXTMODE
+  and EXTCOMIN both tied to GND, library handles bit flip in
+  `refresh()`). Boot screen draws three lines of text + a border;
+  loop updates a tick counter once per second to exercise refresh.
+- **Pin assignments now locked in** (constrained by which header
+  bank is breadboard-accessible on the Olimex):
+  - I2C: SDA=8, SCL=9
+  - Shared SPI: SCK=12, MISO=13, MOSI=11
+  - SD CS=10
+  - Sharp CS=7 (relocated from 14, which isn't on the accessible
+    bank)
+  - Spare GPIOs: 4, 5, 6, 15, 16, 17, 18
+- Library deps pinned: `Adafruit SHARP Memory Display @ 1.1.4`,
+  `Adafruit GFX Library @ 1.12.6`.
+- CH340 USB-UART name has now drifted across `-210` → `-110` →
+  `-10`. Update `platformio.ini` whenever it changes.
+
+**Hardware on hand**
+
+- Olimex ESP32-S3-DevKit-LiPo — working.
+- ICM-20948 IMU — **TESTED** (direct pin headers, no Qwiic).
+- microSD breakout + 32 GB card — **TESTED**.
+- Adafruit Sharp Memory LCD 2.7" 400x240 — **TESTED**.
+- 600 mAh LiPo — unboxed, untested.
+- SparkFun NEO-M9N GNSS — **NOT YET ARRIVED**.
+
+## Next session
+
+All bench peripherals are now validated; the only hardware bring-up
+work remaining is the GNSS once the NEO-M9N arrives. Software-side
+candidates ranked by leverage:
+
+1. **Madgwick fusion on the IMU** — turn the raw 9-DoF stream into
+   an orientation estimate. Open question: roll our own (~200
+   lines, well-understood) vs. an Arduino library. Roll-our-own is
+   probably the right call given how much the project's about
+   "fun to work on" rather than fastest path.
+2. **First "real" main app sketch** — a `src/app/` env that owns
+   the actual application loop, with mode state machine
+   (RIDING/HIKING/LOGGING/SLEEP per CLAUDE.md). Could start as
+   little more than "draw IMU heading on the display."
+3. **MapsForge tile reading** investigation. JVM-only references,
+   so this is mostly a "decide between port-or-replace" research
+   spike, not coding yet.
+4. **Battery test** — power the rig from the 600 mAh LiPo, measure
+   draw, sanity-check the 6h cycling / 16h hiking targets in
+   `CLAUDE.md`. Useful even before GNSS to baseline the
+   non-GNSS power budget.
+
 ## 2026-05-01 — IMU + SD bring-up, serial-log tooling, env restructure
 
 **Done**

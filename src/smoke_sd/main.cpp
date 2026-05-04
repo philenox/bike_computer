@@ -3,18 +3,18 @@
 #include <SD.h>
 #include <FS.h>
 
-// Shared SPI bus (SD now, Sharp display later). These are the Arduino-ESP32
+// Shared SPI bus (SD here, Sharp display in smoke_display). Arduino-ESP32
 // framework defaults for SPI on ESP32-S3, so libraries that fall back to
-// SPI defaults pick the same pins.
+// SPI defaults pick the same pins. Sharp CS lives on GPIO 7; not used in
+// this sketch but reserved at the project level.
 static constexpr int PIN_SCK   = 12;
 static constexpr int PIN_MISO  = 13;
 static constexpr int PIN_MOSI  = 11;
 static constexpr int PIN_SD_CS = 10;
-// PIN_SHARP_CS = 14 reserved for the display, not used here.
 
-// Conservative SPI clock for prototype jumper wiring. SD cards happily run
-// 20+ MHz over a clean trace, but signal integrity on long dupont wires
-// gets dicey fast. Bump later once the bus moves to the perfboard.
+// Conservative SPI clock for prototype breadboard wiring. SD cards happily
+// run 20+ MHz over a clean trace, but signal integrity on a solderless
+// breadboard gets dicey above ~10 MHz. Bump later on perfboard / PCB.
 static constexpr uint32_t SD_HZ = 4000000;
 
 static const char* TEST_PATH = "/bike_test.txt";
