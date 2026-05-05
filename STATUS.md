@@ -2,6 +2,64 @@
 
 Living handoff doc — overwrite freely. Most recent session at top.
 
+## 2026-05-05 — Madgwick AHRS yaw fixed; all smoke tests complete
+
+**Done this session**
+
+- Re-ran `smoke_mag_cal` with thorough rotation (26k samples, full
+  sphere coverage). New offsets:
+  - `MAG_OFFSET_X_uT = +14.78` (was −3.45 — axis under-covered before)
+  - `MAG_OFFSET_Y_uT = -53.55` (unchanged)
+  - `MAG_OFFSET_Z_uT = +88.88` (was +108.75)
+  Span is now balanced at X=101.9, Y=89.4, Z=109.1 µT (was 81/81/217).
+  The old Z-dominated sphere was the root cause of the yaw drift.
+- Updated offsets in `src/smoke_madgwick/main.cpp`.
+- **Yaw drift: ~0.02°/s** (was 0.7°/s). 35× improvement.
+- **360° rotation validated**: yaw sweeps smoothly, crosses ±180°
+  boundary correctly, re-anchors cleanly. Roll/pitch stay bounded.
+- β=0.3 experiment: tried and reverted. Higher β amplified the bad cal
+  into roll/pitch contamination (~18°/s drift). The cal was the
+  bottleneck, not β. Kept at 0.1.
+
+**What we learned about the axis/cal situation**
+- No axis transform needed — X/Y horizontal, Z vertical confirmed by
+  rotation diagnostic (mz constant during flat spin).
+- The first cal was under-covering X, giving a weak horizontal
+  projection (~5 µT). After thorough recal it's ~20 µT — enough to
+  anchor the filter against gyro drift.
+- Re-run `smoke_mag_cal` whenever the breadboard layout changes
+  (anything ferrous moving near the IMU will shift offsets).
+
+**Hardware on hand**
+
+- Olimex ESP32-S3-DevKit-LiPo — working.
+- ICM-20948 IMU — **TESTED** (Madgwick fusion working, yaw stable).
+- microSD breakout + 32 GB card — **TESTED**.
+- Adafruit Sharp Memory LCD 2.7" 400x240 — **TESTED**.
+- 600 mAh LiPo — unboxed, untested.
+- SparkFun NEO-M9N GNSS — **NOT YET ARRIVED**.
+
+**Next session**
+
+All bench peripherals validated. The natural next move is the first
+"real" app sketch (`src/app/`):
+
+1. **Mode state machine** — RIDING/HIKING/LOGGING/SLEEP skeleton, even
+   if all modes do the same thing initially.
+2. **IMU heading on the display** — draw the Madgwick yaw angle as a
+   compass rose or simple heading number on the Sharp LCD. Proves the
+   sensor → filter → display pipeline end-to-end.
+3. **GNSS bring-up** once the NEO-M9N arrives — I2C at 0x42,
+   SparkFun u-blox library.
+
+**Mechanical reminders**
+
+- Port suffix drifts on reconnect: `ls /dev/cu.usbserial-*` and update
+  `platformio.ini` if needed. Was `/dev/cu.usbserial-110` this session.
+- `python scripts/log_serial.py [seconds]` + `tail -F logs/latest.log`
+  in a second terminal for live output.
+- Re-run `smoke_mag_cal` if breadboard layout changes.
+
 ## 2026-05-04 — breadboard migration + Sharp display bring-up
 
 **Done**

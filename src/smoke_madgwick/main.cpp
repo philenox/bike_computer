@@ -32,6 +32,15 @@ static constexpr float GYRO_LSB_PER_DPS  = 131.0f;
 static constexpr float MAG_UT_PER_LSB    = 0.15f;
 static constexpr float DPS_TO_RAD        = 0.017453292519943295f;
 
+// Hard-iron offsets measured by smoke_mag_cal on the current hardware
+// build (breadboard layout, 2026-05-04 session). The Z offset is
+// large because something nearby on the breadboard is generating a
+// steady field on that axis. Re-cal whenever the physical layout
+// changes (perfboard, enclosure).
+static constexpr float MAG_OFFSET_X_uT = +14.78f;
+static constexpr float MAG_OFFSET_Y_uT = -53.55f;
+static constexpr float MAG_OFFSET_Z_uT = +88.88f;
+
 // Filter loop runs much faster than display/print rate. 200 Hz gives
 // Madgwick lots of margin to track fast rotations; 5 Hz prints give
 // a readable serial stream.
@@ -47,6 +56,11 @@ static constexpr uint8_t  AK_MODE_CONTINUOUS_100HZ = 0x08;
 // β: starting at 0.1 -- aggressive enough to converge in a few seconds
 // from the identity quaternion, mild enough to not look jittery. Drop
 // toward 0.033 (the paper's recommendation) once we trust the cal.
+//
+// Tried β=0.3 to compensate for weak horizontal mag projection; that
+// made yaw drift jump to ~18°/s AND started corrupting roll/pitch (the
+// bad mag is now strong enough in the combined gradient to contaminate
+// tilt). The mag cal itself is the bottleneck, not β.
 static Madgwick filter(0.1f);
 
 // Gyro bias measured at boot, in dps. Subtracted from every read.
@@ -222,12 +236,20 @@ void loop() {
   // Mag at 100 Hz, fusion at 200 Hz: roughly every other cycle has a
   // fresh sample. When stale, we re-use the last reading rather than
   // dropping to IMU-only mode mid-stream.
+  //
+  // Hard-iron offsets subtracted; no axis transform applied.
+  // Empirical: rotation diagnostic showed chip mag X/Y/Z line up with
+  // body X/Y/Z (mz held constant during a controlled flat 360° yaw,
+  // mx and my swept the expected sinusoids). Tried Z-negate and
+  // swap+negate transforms — both made yaw drift WORSE. Best state:
+  // identity transform with hard-iron cal, drift ~0.7 deg/s. See
+  // STATUS.md for the planned next attempts.
   static float mx_uT = 0, my_uT = 0, mz_uT = 0;
   int16_t mx_raw, my_raw, mz_raw;
   if (readMagRaw(mx_raw, my_raw, mz_raw)) {
-    mx_uT = mx_raw * MAG_UT_PER_LSB;
-    my_uT = my_raw * MAG_UT_PER_LSB;
-    mz_uT = mz_raw * MAG_UT_PER_LSB;
+    mx_uT = mx_raw * MAG_UT_PER_LSB - MAG_OFFSET_X_uT;
+    my_uT = my_raw * MAG_UT_PER_LSB - MAG_OFFSET_Y_uT;
+    mz_uT = mz_raw * MAG_UT_PER_LSB - MAG_OFFSET_Z_uT;
   }
 
   filter.update(gx_rs, gy_rs, gz_rs, ax_g, ay_g, az_g,
@@ -236,7 +258,13 @@ void loop() {
   uint32_t ms = millis();
   if ((uint32_t)(ms - last_print_ms) >= PRINT_PERIOD_MS) {
     last_print_ms = ms;
-    Serial.printf("roll=%+7.2f  pitch=%+7.2f  yaw=%+7.2f\n",
-                  filter.roll(), filter.pitch(), filter.yaw());
+    // Mag values printed for diagnosis: if these are constant when the
+    // device is still, the filter has stable inputs but isn't using them
+    // (axis problem). If they wander while still, something's perturbing
+    // the magnetic environment.
+    Serial.printf("roll=%+7.2f  pitch=%+7.2f  yaw=%+7.2f   "
+                  "mag[uT]=(%+6.1f, %+6.1f, %+6.1f)\n",
+                  filter.roll(), filter.pitch(), filter.yaw(),
+                  mx_uT, my_uT, mz_uT);
   }
 }
