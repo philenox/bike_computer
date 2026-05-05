@@ -90,14 +90,21 @@ def main() -> int:
         ser.rts = False
         ser.reset_input_buffer()  # discard noise from the line transitions
 
+    # Also write to logs/latest.log (truncated each run) so a single
+    # `tail -F logs/latest.log` window keeps working across flashes —
+    # the timestamped file stays as the durable archive.
+    latest_path = LOG_DIR / "latest.log"
+
     deadline = time.monotonic() + args.seconds
     bytes_total = 0
-    with ser, open(args.output, "wb") as out:
+    with ser, open(args.output, "wb") as out, open(latest_path, "wb") as latest:
         while time.monotonic() < deadline:
             chunk = ser.read(4096)
             if chunk:
                 out.write(chunk)
                 out.flush()
+                latest.write(chunk)
+                latest.flush()
                 sys.stdout.buffer.write(chunk)
                 sys.stdout.buffer.flush()
                 bytes_total += len(chunk)
