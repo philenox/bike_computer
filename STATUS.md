@@ -2,6 +2,51 @@
 
 Living handoff doc — overwrite freely. Most recent session at top.
 
+## 2026-05-06 — Heading-up tile renderer smoke test written and compiling
+
+**Done this session**
+
+- **`lib/icm20948/`** — ICM-20948 extracted into a shared driver (used by
+  both `smoke_madgwick` and `smoke_tiles`). API:
+  - `begin(wire)` — reset, WHO_AM_I check (0xEA), bypass enable, AK init
+  - `calibrateGyro()` — 3 s countdown, 200-sample bias cal
+  - `readAccelGyro()` — 12-byte burst, bias-corrected rad/s + g
+  - `readMag()` — AK09916 DRDY-gated, returns µT raw (no hard-iron applied)
+- **`src/smoke_tiles/main.cpp`** — heading-up rotating map renderer:
+  - Loads a 2×2 slippy-map tile grid from SD (`/tiles/15/{x}/{y}.bin`)
+  - 32 KB tile buffer (`uint8_t tile_buf[2][2][8192]`) in SRAM
+  - `blit_rotated()`: inverse-rotation transform with inner-loop
+    optimisation (precomputed row terms, step by cos_a/sin_a per column)
+  - Position marker: 5×5 white outline, 3×3 black core at screen centre
+  - IMU at 200 Hz; display at 5 Hz
+  - Fixed GPS position: 51.458658, -0.993939 (Reading, UK)
+- **`scripts/fetch_tiles.py`** — rewrote to use Overpass API (single vector
+  download of road network) + PIL rendering. Output: 1-bit MSB-first tiles
+  at `/tiles/{z}/{x}/{y}.bin`, plus a preview PNG for sanity-checking.
+  Tiles written to SD at `/Volumes/BIKESD/tiles` for zoom 14–16.
+- **`smoke_madgwick`** simplified to use the shared ICM20948 driver (~80 lines).
+- **Build result**: `smoke_tiles` SUCCESS — 16.0% RAM (52 KB / 320 KB),
+  11.1% Flash. All prior environments still building.
+
+**Not yet done (hardware step)**
+
+- `smoke_tiles` has not been flashed. Pre-flight checklist before flash:
+  1. Confirm SD card is inserted with tiles at `/tiles/15/{x}/{y}.bin`
+     (run `python scripts/fetch_tiles.py 51.458658 -0.993939 --out /Volumes/BIKESD/tiles`
+     if not already done — needs the SD reader).
+  2. Connect display (SHARP_CS=7), SD (SD_CS=10), IMU (SDA=8, SCL=9).
+  3. Flash: `pio run -e smoke_tiles -t upload`.
+  4. Watch serial for `[tiles] loaded in X ms` and `[run] entering render loop`.
+  5. Rotate the breadboard — map should rotate heading-up.
+
+**Known limitation of the 2×2 tile approach**
+
+- If the user's sub-tile pixel position is near (0,0) — i.e., very close
+  to the NW corner of the top-left tile — the rotated blit will clip into
+  black (out-of-bounds fills as black). With fixed coords (51.458658,
+  -0.993939) sub_x/sub_y will be whatever they are; if they're near an
+  edge, a 3×3 grid would help. Easy upgrade later.
+
 ## 2026-05-05 — Madgwick AHRS yaw fixed; all smoke tests complete
 
 **Done this session**
