@@ -7,11 +7,14 @@ static constexpr int I2C_SDA = 8;
 static constexpr int I2C_SCL = 9;
 static constexpr uint32_t I2C_HZ = 400000;
 
-// Hard-iron offsets from smoke_mag_cal (2026-05-05, current breadboard layout).
+// Hard-iron offsets in the ICM-20948 accel/gyro frame (mag Y/Z already
+// negated by the driver and by smoke_mag_cal). Recaptured 2026-05-07
+// well clear of the laptop — earlier cal had laptop-magnet contamination
+// that pulled Y to +106 µT.
 // Re-run smoke_mag_cal if anything ferrous moves near the IMU.
-static constexpr float MAG_OFFSET_X_uT = +14.78f;
-static constexpr float MAG_OFFSET_Y_uT = -53.55f;
-static constexpr float MAG_OFFSET_Z_uT = +88.88f;
+static constexpr float MAG_OFFSET_X_uT =  -1.4f;
+static constexpr float MAG_OFFSET_Y_uT = +52.6f;
+static constexpr float MAG_OFFSET_Z_uT = -67.9f;
 
 static constexpr uint32_t LOOP_HZ        = 200;
 static constexpr uint32_t LOOP_PERIOD_US = 1000000UL / LOOP_HZ;

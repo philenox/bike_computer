@@ -125,9 +125,15 @@ bool ICM20948::readMag(float &mx, float &my, float &mz) {
     if (!readReg(AK_ADDR, AK_ST1, st1) || !(st1 & 0x01)) return false;
     uint8_t b[8];  // HXL,HXH,HYL,HYH,HZL,HZH,TMPS,ST2
     if (!readRegs(AK_ADDR, AK_HXL, b, 8)) return false;
-    mx = lit16(b[0], b[1]) * MAG_UT_PER_LSB;
-    my = lit16(b[2], b[3]) * MAG_UT_PER_LSB;
-    mz = lit16(b[4], b[5]) * MAG_UT_PER_LSB;
+    // The AK09916 magnetometer die inside the ICM-20948 has its Y and Z
+    // axes inverted relative to the accel/gyro frame (per datasheet
+    // "Orientation of Axes of Sensitivity"). Apply that transform here
+    // so callers see all 9 DoF in one consistent body frame — Madgwick
+    // and friends require this. Hard-iron offsets calibrated against
+    // this output are likewise in the aligned frame.
+    mx =  lit16(b[0], b[1]) * MAG_UT_PER_LSB;
+    my = -lit16(b[2], b[3]) * MAG_UT_PER_LSB;
+    mz = -lit16(b[4], b[5]) * MAG_UT_PER_LSB;
     return true;
 }
 

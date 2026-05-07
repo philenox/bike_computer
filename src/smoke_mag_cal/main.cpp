@@ -144,9 +144,12 @@ void loop() {
   if (readReg(AK_ADDR, AK_ST1, st1) && (st1 & 0x01)) {
     uint8_t b[8];  // HXL,HXH,HYL,HYH,HZL,HZH,TMPS,ST2
     if (readRegs(AK_ADDR, AK_HXL, b, 8)) {
-      int16_t mx = le16(b[0], b[1]);
-      int16_t my = le16(b[2], b[3]);
-      int16_t mz = le16(b[4], b[5]);
+      int16_t mx =  le16(b[0], b[1]);
+      // AK09916 Y and Z axes are inverted relative to the ICM-20948
+      // accel/gyro frame; flip them so the offsets we emit are in the
+      // same frame the driver and Madgwick filter use at runtime.
+      int16_t my = -le16(b[2], b[3]);
+      int16_t mz = -le16(b[4], b[5]);
       if (mx < mx_min) mx_min = mx;
       if (mx > mx_max) mx_max = mx;
       if (my < my_min) my_min = my;
@@ -154,6 +157,13 @@ void loop() {
       if (mz < mz_min) mz_min = mz;
       if (mz > mz_max) mz_max = mz;
       ++samples;
+      // Emit raw sample at ~10 Hz for the laptop-side sphere visualizer.
+      static uint8_t raw_dec = 0;
+      if (++raw_dec >= 10) {
+        raw_dec = 0;
+        Serial.printf("raw: %+8.2f %+8.2f %+8.2f\n",
+                      mx * MAG_UT_PER_LSB, my * MAG_UT_PER_LSB, mz * MAG_UT_PER_LSB);
+      }
     }
   }
 
